@@ -1,0 +1,15 @@
+.env
+.env.* 
+
+# Dependencies
+node_modules/
+
+# Generated files
+output/
+.cache/
+dist/
+sitemaps/
+
+# Dependencies
+node_modules/
+.DS_Store
