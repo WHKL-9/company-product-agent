@@ -111,7 +111,7 @@ export class ContentAnalyzer {
               "challenge": "specific challenge name",
               "explanation": "detailed explanation with competitive context",
               "examples": "concrete industry examples",
-              "sources": "relevant sources and links",
+              "sources": "specific external URLs, research papers, or regulatory documents (provide full URLs when available)",
               "competitiveContext": "how competitors address this challenge",
               "futurePerspective": "how this challenge might evolve"
             }
