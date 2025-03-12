@@ -2,51 +2,30 @@ import retry from "async-retry";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import { Config } from "../config/config";
+import { COMPANY_PRODUCT_PATHS, CompanyName } from "../config/productPaths";
 import { SitemapURL, WebpageContent } from "../types";
 
-const PRODUCT_PATHS = [
-  "/solaranlage/",
-  "/waermepumpe/",
-  "/stromspeicher/",
-  "/wallbox/",
-  "/heartbeat/",
-  "/solar-pv",
-  "/battery-storage",
-  "/smart-ev-charging",
-  "/smart-hvac",
-  "/our-tariff",
-  "/dynamic-pricing",
-  "/simplyfair",
-  "/simplydynamic",
-  "/smartmeter",
-  "/ostrom-price-cap",
-  "/ostrom-app",
-  "/smart-heating",
-  "/solar",
-  "/virtual-power-plant",
-] as const;
-
 const BLOG_PATHS = [
-  "/magazin/",
+  "/magazin",
   "/blog",
-  "/news/",
-  "/pressemitteilungen/",
-  "/post/",
+  "/news",
+  "/pressemitteilungen",
+  "/post",
   "/press",
 ] as const;
 
 const ABOUT_PATHS = [
-  "/ueber-uns/",
+  "/ueber-uns",
   "/about-us",
-  "/team/",
+  "/team",
   "/careers",
-  "/jobs/",
-  "/kontakt/",
+  "/jobs",
+  "/kontakt",
   "/contact",
 ] as const;
 
 const LEGAL_PATHS = [
-  "/legal/",
+  "/legal",
   "/privacy",
   "/terms",
   "/imprint",
@@ -61,13 +40,21 @@ const HOME_PATHS = ["/de/", "/en/", "/"] as const;
 
 export class ContentFetcher {
   private config: Config;
+  private company: CompanyName;
 
-  constructor(config?: Config) {
+  constructor(company: CompanyName, config?: Config) {
+    this.company = company;
     this.config = config || {
       openAIApiKey: "",
       maxConcurrentRequests: 5,
       requestTimeoutMs: 30000,
     };
+  }
+
+  isProductPath(path: string): boolean {
+    return COMPANY_PRODUCT_PATHS[this.company].some((productPath) =>
+      path.toLowerCase().includes(productPath.toLowerCase())
+    );
   }
 
   /**
@@ -87,21 +74,20 @@ export class ContentFetcher {
 
     // Check path patterns
     const matchedPattern = (() => {
-      switch (true) {
-        case PRODUCT_PATHS.some((p) => path.includes(p)):
-          return "product";
-        case BLOG_PATHS.some((p) => path.includes(p)):
-          return "blog";
-        case ABOUT_PATHS.some((p) => path.includes(p)):
-          return "about";
-        case LEGAL_PATHS.some((p) => path.includes(p)):
-          return "legal";
-        case SERVICE_PATHS.some((p) => path.includes(p)):
-          return "service";
-        case BUSINESS_PATHS.some((p) => path.includes(p)):
-          return "business";
-        default:
-          return "other";
+      if (this.isProductPath(path)) {
+        return "product";
+      } else if (BLOG_PATHS.some((p) => path.includes(p))) {
+        return "blog";
+      } else if (ABOUT_PATHS.some((p) => path.includes(p))) {
+        return "about";
+      } else if (LEGAL_PATHS.some((p) => path.includes(p))) {
+        return "legal";
+      } else if (SERVICE_PATHS.some((p) => path.includes(p))) {
+        return "service";
+      } else if (BUSINESS_PATHS.some((p) => path.includes(p))) {
+        return "business";
+      } else {
+        return "other";
       }
     })();
 

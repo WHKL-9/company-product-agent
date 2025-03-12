@@ -23,7 +23,7 @@ async function main() {
     // Construct sitemap path dynamically based on company name
     const sitemapPath = path.join(
       __dirname,
-      `parsers/${companyName}/${companyName}_sitemap.xml`
+      `parsers/sitemaps/${companyName}_sitemap.xml`
     );
 
     // Check if sitemap file exists

@@ -4,28 +4,34 @@ import fs from "fs/promises";
 import pLimit from "p-limit";
 import { ContentAnalyzer } from "./analysis/contentAnalyzer";
 import { Config, getConfig } from "./config/config";
+import { CompanyName } from "./config/productPaths";
 import { ContentFetcher } from "./fetchers/contentFetcher";
 import { SitemapParser } from "./parsers/sitemapParser";
 import { SitemapURL, StructuredSummary, WebpageContent } from "./types";
 
 export class EnergyWebsiteAnalyzer {
-  private sitemapParser: SitemapParser;
-  private contentFetcher: ContentFetcher;
-  private contentAnalyzer: ContentAnalyzer;
-  private config: Config;
-  private limit: ReturnType<typeof pLimit>;
+  private readonly sitemapParser: SitemapParser;
+  private readonly contentAnalyzer: ContentAnalyzer;
+  private readonly config: Config;
+  private readonly limit: ReturnType<typeof pLimit>;
 
   constructor(config?: Partial<Config>) {
     this.config = { ...getConfig(), ...config };
     this.sitemapParser = new SitemapParser();
-    this.contentFetcher = new ContentFetcher(this.config);
     this.contentAnalyzer = new ContentAnalyzer(this.config.openAIApiKey);
     this.limit = pLimit(5);
   }
 
-  private determinePageType(url: string): WebpageContent["pageType"] {
+  private createContentFetcher(company: CompanyName): ContentFetcher {
+    return new ContentFetcher(company, this.config);
+  }
+
+  private determinePageType(
+    url: string,
+    contentFetcher: ContentFetcher
+  ): WebpageContent["pageType"] {
     const $ = cheerio.load("<html></html>");
-    return this.contentFetcher.determinePageType(url, $);
+    return contentFetcher.determinePageType(url, $);
   }
 
   /**
@@ -38,7 +44,7 @@ export class EnergyWebsiteAnalyzer {
   async analyze(
     sitemapXml: string,
     outputPath?: string,
-    urlLimit: number = 5
+    urlLimit: number = 200
   ): Promise<StructuredSummary[]> {
     const progressBar = new cliProgress.SingleBar(
       { format: " {bar} {percentage}% | ETA: {eta}s | {value}/{total} URLs" },
@@ -46,6 +52,10 @@ export class EnergyWebsiteAnalyzer {
     );
 
     try {
+      // Extract company name from sitemap and initialize contentFetcher
+      const company = this.extractCompanyName(sitemapXml);
+      const contentFetcher = this.createContentFetcher(company);
+
       const urls = (await this.sitemapParser.parse(sitemapXml)).slice(
         0,
         urlLimit
@@ -57,7 +67,7 @@ export class EnergyWebsiteAnalyzer {
       const otherUrls: SitemapURL[] = [];
 
       urls.forEach((url) => {
-        const pageType = this.determinePageType(url.loc);
+        const pageType = this.determinePageType(url.loc, contentFetcher);
         if (pageType === "product") {
           productUrls.push(url);
         } else {
@@ -68,12 +78,16 @@ export class EnergyWebsiteAnalyzer {
       // Process URLs and update progress
       const results = await Promise.all([
         ...productUrls.map(async (url) => {
-          const result = await this.limit(() => this.processUrl(url));
+          const result = await this.limit(() =>
+            this.processUrl(url, contentFetcher)
+          );
           progressBar.increment();
           return result;
         }),
         ...otherUrls.map(async (url) => {
-          const result = await this.limit(() => this.processUrl(url));
+          const result = await this.limit(() =>
+            this.processUrl(url, contentFetcher)
+          );
           progressBar.increment();
           return result;
         }),
@@ -98,13 +112,20 @@ export class EnergyWebsiteAnalyzer {
     }
   }
 
-  private async processUrl(url: SitemapURL) {
+  private async processUrl(url: SitemapURL, contentFetcher: ContentFetcher) {
     try {
-      const content = await this.contentFetcher.fetch(url);
+      const content = await contentFetcher.fetch(url);
       return await this.contentAnalyzer.analyze(content);
     } catch (error) {
       console.error(`Error processing ${url.loc}:`, error);
       return null;
     }
+  }
+
+  private extractCompanyName(sitemap: string): CompanyName {
+    if (sitemap.includes("1komma5")) return "1komma5";
+    if (sitemap.includes("ostrom")) return "ostrom";
+    if (sitemap.includes("spotmyenergy")) return "spotmyenergy";
+    throw new Error("Unknown company");
   }
 }

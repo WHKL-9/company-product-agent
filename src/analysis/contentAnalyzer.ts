@@ -35,6 +35,17 @@ export class ContentAnalyzer {
     }
   }
 
+  /**
+   * Analyzes a product page through a 4-pass AI analysis process:
+   * 1. First pass: Identifies general market challenges
+   * 2. Second pass: Analyzes German/EU-specific market context
+   * 3. Third pass: Evaluates competitive landscape and market trends
+   * 4. Final pass: Synthesizes insights into structured JSON format
+   *
+   * @param content - The webpage content to analyze, including URL, title, and extracted text
+   * @returns A structured analysis with product details, market assessment, and scaling challenges
+   * @throws Error if OpenAI API calls fail or response parsing errors occur
+   */
   private async analyzeProductPage(content: WebpageContent) {
     // First pass: General market challenges
     const firstPassPrompt = `Analyze this webpage for general market challenges:
